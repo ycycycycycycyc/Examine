@@ -1,0 +1,285 @@
+#include "mainwindow.h"
+#include <QtCharts>
+QT_CHARTS_USE_NAMESPACE
+#include "ui_mainwindow.h"
+#include "stdio.h"
+#include "QDebug"
+MainWindow::MainWindow(QWidget *parent)
+    : QMainWindow(parent)
+    , ui(new Ui::MainWindow)
+{
+    ui->setupUi(this);
+    mqtt_client = new QMQTT::Client;
+
+series = new QSplineSeries;
+series->setName("温度");
+
+chart = ui->widget->chart();
+chart->setTitle("温湿度");
+
+chart->addSeries(series);
+chart->createDefaultAxes();
+num = 0;
+
+series_0 = new QSplineSeries;
+series_0->setName("湿度");
+
+
+chart->addSeries(series_0);
+chart->createDefaultAxes();
+num_0 = 0;
+
+
+
+
+
+num1 = 0;
+msg_tem=0;
+msg_humi=100;
+
+series2 = new QSplineSeries;
+series2->setName("浓度");
+
+chart2 = ui->widget_3->chart();
+chart2->setTitle("浓度");
+
+chart2->addSeries(series2);
+chart2->createDefaultAxes();
+num2 = 0;
+
+i_count=0;
+i1=0;
+i2=0;
+i3=0;
+
+
+m_strProductKey = "hg74uqD7rrr";
+m_strDeviceName = "jiedian";
+m_strDeviceSecret = "ff389a7fcb5adace3b8eea3c230ba36d";
+m_strRegionId = "cn-shanghai";
+m_strHostName = m_strProductKey + ".iot-as-mqtt." + m_strRegionId + ".aliyuncs.com";
+m_strPubTopic = "/sys/hg74uqD7rrr/jiedian/thing/event/property/post";
+m_strSubTopic = "/sys/hg74uqD7rrr/jiedian/thing/event/property/post";
+
+
+mqtt_client->setHostName(m_strHostName);
+mqtt_client->setPort(1883);
+mqtt_client->setUsername(m_strDeviceName + "&" + m_strProductKey);
+mqtt_client->setClientId("hg74uqD7rrr.jiedian|securemode=2,signmethod=hmacsha256,timestamp=1684473235417|");
+
+mqtt_client->setPassword("112d95f00c4b31f487a0306063cd035ae26f540ff26cfec05f70e49f908d1364");
+mqtt_client->setKeepAlive(30);
+
+
+connect(mqtt_client,SIGNAL(connected()),this,SLOT(doConnected()));
+mqtt_client->connectToHost();
+QTimer *timer = new QTimer(this);
+timer->start(4200);
+connect(timer, SIGNAL(timeout()), this, SLOT(onTimeout()));
+
+
+
+timer1 = new QTimer(this);
+timer1->start(3200);
+connect(timer1, SIGNAL(timeout()), this, SLOT(onTimeout1()));
+
+
+
+timer3 = new QTimer(this);
+timer3->start(3200);
+connect(timer3, SIGNAL(timeout()), this, SLOT(onTimeout3()));
+}
+
+MainWindow::~MainWindow()
+{
+    delete ui;
+
+}
+void MainWindow::doConnected()
+{
+    qDebug("connect succeed");
+
+
+}
+
+void MainWindow::on_pushButton_2_clicked()//打开TCP服务器
+{
+
+    server =new QTcpServer;
+
+    server2 =new QTcpServer;
+
+    server->listen(QHostAddress::Any,55559);
+
+    server2->listen(QHostAddress::Any,55557);
+
+    connect(server,SIGNAL(newConnection()),this,SLOT(new_client()));
+
+    connect(server2,SIGNAL(newConnection()),this,SLOT(new_client2()));
+
+}
+
+void MainWindow::new_client()
+{
+
+
+
+    socket=server->nextPendingConnection();
+
+    connect(socket,SIGNAL(readyRead()),this,SLOT(read_data()));
+
+
+
+}
+void MainWindow::new_client1()
+{
+
+
+
+    socket1=server1->nextPendingConnection();
+
+    connect(socket1,SIGNAL(readyRead()),this,SLOT(read_data1()));
+}
+void MainWindow::new_client2()
+{
+
+
+
+    socket2=server2->nextPendingConnection();
+
+    connect(socket2,SIGNAL(readyRead()),this,SLOT(read_data2()));
+}
+void MainWindow::read_data()
+{
+    bool ok;
+
+    ui->label_7->setText("在线");
+
+   timer1->stop();
+
+     msgg0=socket->readAll();
+     msg_int=msgg0.toInt(&ok,10);
+
+
+     ++i1;
+     if(i1%3!=0)
+     {
+     if(i1%2==0)
+     msg_tem=msg_int;
+     else
+     msg_humi=msg_int;
+     }
+     if(i1%3==0)
+     {
+
+      i1=0;
+     }
+
+   ui->label_9->setText(QString::number(msg_tem));
+    ui->label_10->setText(QString::number(msg_humi));
+   ui->label_23->setText(QString::number(msg_disv1));
+
+
+
+    ui->textBrowser->append(msgg0);
+
+if((QString::number(msg_tem)<101)&&(QString::number(msg_humi)<101))
+{
+    QPointF p(num++,QString::number(msg_tem).toFloat());
+    QPointF p_0(num++,QString::number(msg_humi).toFloat());
+
+
+    list.append(p);
+    series->replace(list);
+    list_0.append(p_0);
+    series_0->replace(list_0);
+
+
+
+    chart->removeSeries(series);
+    chart->removeSeries(series_0);
+    chart->addSeries(series);
+    chart->addSeries(series_0);
+
+    chart->createDefaultAxes();
+    ui->widget->setChart(chart);
+}
+}
+void MainWindow::read_data1()
+{
+
+}
+void MainWindow::read_data2()
+{
+    bool ok;
+
+     msgg2=socket2->readAll();
+     msg_int2=msgg2.toInt(&ok,10);
+     if((++i3)%2==0)
+                   ;
+     else
+         msg_mq5=msg_int2;
+
+     ui->label_25->setText(QString::number(msg_disv3));
+    ui->label_11->setText(QString::number(msg_mq5));
+    ui->textBrowser->append(msgg2);
+
+    ui->label_19->setText("在线");
+    timer3->stop();
+
+    QPointF p2(num2++,QString::number(msg_mq5).toFloat());
+
+    list2.append(p2);
+    series2->replace(list2);
+
+
+    chart2->removeSeries(series2);
+    chart2->addSeries(series2);
+
+    chart2->createDefaultAxes();
+    ui->widget_3->setChart(chart2);
+}
+void  MainWindow::onTimeout()
+{
+    static uint64_t i1=0;
+    i1++;
+
+
+
+
+    QString sql = QString("{\"id\":1683440632851,\"params\":{\"temperature\":%1,\"Humidity\":%2},\"version\":\"1.0\",\"method\":\"thing.event.property.post\"}").arg(msg_tem).arg(msg_humi);
+
+    QString sql2=QString("{\"id\":1684850962271,\"params\":{\"GasConcentration\":%1},\"version\":\"1.0\",\"method\":\"thing.event.property.post\"}").arg(msg_mq5);
+
+    QMQTT::Message send_msg(136,m_strPubTopic,sql.toLocal8Bit(),0);
+
+    QMQTT::Message send_msg2(136,m_strPubTopic,sql2.toLocal8Bit(),0);
+    mqtt_client->publish(send_msg);
+
+    mqtt_client->publish(send_msg2);
+    timer1->start(3200);
+    connect(timer1, SIGNAL(timeout()), this, SLOT(onTimeout1()));
+
+    timer3->start(3200);
+    connect(timer3, SIGNAL(timeout()), this, SLOT(onTimeout3()));
+
+}
+void  MainWindow::onTimeout1()
+{
+
+ui->label_7->setText("离线");
+    i1=0;
+
+
+}
+
+void  MainWindow::onTimeout3()
+{
+
+    ui->label_19->setText("离线");
+    i3=0;
+
+}
+
+
+
